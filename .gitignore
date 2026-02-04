@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# macOS
+.DS_Store
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Project data (extracted frames, videos, index)
+data/frames/
+data/videos/
+data/image/
+data/*.jsonl
+data/test/
+
+# Optional: keep data dir structure; uncomment to ignore entire data/
+# data/
+
+# Env / secrets
+.env
+.env.local
+*.pem
+
+urls.txt
