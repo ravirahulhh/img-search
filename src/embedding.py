@@ -25,6 +25,49 @@ def _load_model(cfg: ModelConfig = model):
     return vision_model, image_processor, device
 
 
+def _infer_embedding_dim(vision_model: torch.nn.Module) -> int:
+    """Best-effort inference of image embedding dimension from SigLIP/SigLIP2 config."""
+    cfg = getattr(vision_model, "config", None)
+    if cfg is None:
+        raise AttributeError("Model has no config; cannot infer embedding dimension.")
+
+    # Prefer explicit projection dimension used for image/text alignment.
+    for attr in (
+        "projection_dim",
+        "image_embed_dim",
+    ):
+        dim = getattr(cfg, attr, None)
+        if isinstance(dim, int) and dim > 0:
+            return dim
+
+    # Try nested vision config (common for multi-modal models).
+    vision_cfg = getattr(cfg, "vision_config", None)
+    if vision_cfg is not None:
+        for attr in (
+            "hidden_size",
+            "embed_dim",
+            "width",
+        ):
+            dim = getattr(vision_cfg, attr, None)
+            if isinstance(dim, int) and dim > 0:
+                return dim
+
+    # Fallback to a few common attribute names on the root config.
+    for attr in (
+        "hidden_size",
+        "embed_dim",
+        "width",
+    ):
+        dim = getattr(cfg, attr, None)
+        if isinstance(dim, int) and dim > 0:
+            return dim
+
+    raise AttributeError(
+        "Could not infer embedding dimension from model config; "
+        "please check the SigLIP/SigLIP2 config fields."
+    )
+
+
 def _load_image(path: str) -> Image.Image:
     with Image.open(path) as img:
         return img.convert("RGB")
@@ -43,8 +86,8 @@ def encode_images(
     if not paths_list:
         # Use model config to determine embedding dimension.
         vision_model, _, _ = _load_model(cfg)
-        dim = int(getattr(vision_model.config, "projection_dim", 0) or getattr(vision_model.config, "hidden_size"))
-        return np.zeros((0, dim), dtype=np.float32)
+        dim = _infer_embedding_dim(vision_model)
+        return np.zeros((0, int(dim)), dtype=np.float32)
 
     all_embeds: List[np.ndarray] = []
     with torch.no_grad():
@@ -69,8 +112,6 @@ def encode_images(
 
 def get_embedding_dim(cfg: ModelConfig = model) -> int:
     vision_model, _, _ = _load_model(cfg)
-    dim = getattr(vision_model.config, "projection_dim", None)
-    if dim is None:
-        dim = getattr(vision_model.config, "hidden_size")
+    dim = _infer_embedding_dim(vision_model)
     return int(dim)
 
