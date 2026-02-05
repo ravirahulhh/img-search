@@ -73,7 +73,7 @@ def cmd_index_from_urls(args: argparse.Namespace) -> None:
         temp_dir=temp_dir,
         scene_cfg=config.scene,
     )
-    print(f"Extracted {len(metas)} keyframes from {url_list_path}.")
+    print(f"Metadata now contains {len(metas)} frame entries (previous + this run).")
 
     if not args.no_build_index:
         print("Building FAISS index...")

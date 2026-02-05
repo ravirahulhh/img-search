@@ -70,12 +70,12 @@ def download_video_ytdlp(url: str, output_path: str) -> Optional[str]:
     """Download a video using yt-dlp to output_path (directory); returns path to video file.
 
     output_path should be a directory. yt-dlp will create a file like video.%(ext)s inside.
-    Returns the path to the downloaded video file, or None on failure.
+    Returns the path to the downloaded video file, or None on failure (skips without raising).
     """
     os.makedirs(output_path, exist_ok=True)
     out_tpl = os.path.join(output_path, "video.%(ext)s")
     try:
-        subprocess.run(
+        result = subprocess.run(
             [
                 "yt-dlp",
                 "--no-playlist",
@@ -84,17 +84,24 @@ def download_video_ytdlp(url: str, output_path: str) -> Optional[str]:
                 out_tpl,
                 url,
             ],
-            check=True,
             capture_output=True,
             text=True,
             timeout=3600,
         )
-    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
-        if isinstance(e, FileNotFoundError):
-            raise RuntimeError(
-                "yt-dlp not found. Install it (e.g. pip install yt-dlp or system package) and ensure it is on PATH."
-            ) from e
-        raise
+    except FileNotFoundError as e:
+        raise RuntimeError(
+            "yt-dlp not found. Install it (e.g. pip install yt-dlp or system package) and ensure it is on PATH."
+        ) from e
+    except subprocess.TimeoutExpired:
+        tqdm.write(f"Timeout: {url}")
+        return None
+
+    if result.returncode != 0:
+        err = (result.stderr or result.stdout or "").strip() or f"exit code {result.returncode}"
+        tqdm.write(f"yt-dlp failed: {url}")
+        tqdm.write(f"  {err[:500]}")
+        return None
+
     return _find_downloaded_video(output_path)
 
 
@@ -107,7 +114,8 @@ def download_and_extract_from_url_list(
 ) -> List[FrameMetadata]:
     """For each URL in the file: download to temp, extract keyframes, delete video.
 
-    Frames are written under frames_dir; metadata is appended to metadata_path.
+    If metadata_path already exists, it is loaded and new frame records are appended
+    (previous data is preserved). Frames are written under frames_dir.
     video_path in frame metadata is set to the source URL (no local video kept).
     """
     ensure_directories()
@@ -125,7 +133,24 @@ def download_and_extract_from_url_list(
     if not urls:
         raise ValueError(f"No URLs found in {url_list_path}")
 
+    # Load existing metadata so we append to it instead of overwriting (preserve previous runs).
     all_metas: List[FrameMetadata] = []
+    if os.path.isfile(metadata_path):
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                d = json.loads(line)
+                all_metas.append(
+                    FrameMetadata(
+                        video_path=d["video_path"],
+                        video_id=d["video_id"],
+                        frame_index=d["frame_index"],
+                        timestamp_sec=d["timestamp_sec"],
+                        frame_path=d["frame_path"],
+                    )
+                )
+
     for i, url in enumerate(tqdm(urls, desc="Videos", unit="video")):
         video_id = _video_id_from_url(url, i)
         temp_video_dir = tempfile.mkdtemp(prefix=video_id + "_", dir=temp_dir)
@@ -150,7 +175,7 @@ def download_and_extract_from_url_list(
                 except OSError:
                     pass
 
-    # Write full JSONL metadata.
+    # Write full JSONL metadata (existing + this run).
     with open(metadata_path, "w", encoding="utf-8") as f:
         for meta in all_metas:
             f.write(json.dumps(asdict(meta), ensure_ascii=False) + "\n")
