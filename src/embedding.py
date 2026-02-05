@@ -68,6 +68,22 @@ def _infer_embedding_dim(vision_model: torch.nn.Module) -> int:
     )
 
 
+def _extract_feature_tensor(raw) -> torch.Tensor:
+    """Unwrap HuggingFace output (e.g. BaseModelOutputWithPooling) to a single tensor."""
+    if isinstance(raw, torch.Tensor):
+        return raw
+    if hasattr(raw, "pooler_output") and raw.pooler_output is not None:
+        return raw.pooler_output
+    if hasattr(raw, "last_hidden_state") and raw.last_hidden_state is not None:
+        return raw.last_hidden_state[:, 0]
+    if isinstance(raw, (tuple, list)) and len(raw) > 0 and isinstance(raw[0], torch.Tensor):
+        return raw[0]
+    raise TypeError(
+        "Model returned an unsupported type; expected Tensor or output with "
+        "pooler_output / last_hidden_state."
+    )
+
+
 def _load_image(path: str) -> Image.Image:
     with Image.open(path) as img:
         return img.convert("RGB")
@@ -98,10 +114,10 @@ def encode_images(
             inputs = {k: v.to(device) for k, v in inputs.items()}
             # SigLIP2 exposes get_image_features for normalized image embeddings.
             if hasattr(vision_model, "get_image_features"):
-                feats = vision_model.get_image_features(**inputs)
+                raw = vision_model.get_image_features(**inputs)
+                feats = _extract_feature_tensor(raw)
             else:
                 outputs = vision_model(**inputs)
-                # Fallback: pool last hidden state if projection head is not available.
                 last_hidden = outputs.last_hidden_state  # (B, seq_len, hidden_size)
                 feats = last_hidden[:, 0]  # CLS token
             feats = feats / feats.norm(dim=-1, keepdim=True)
