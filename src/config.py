@@ -24,8 +24,11 @@ class SceneDetectConfig:
 
 @dataclass(frozen=True)
 class ModelConfig:
-    model_name: str = "ViT-B-32"
-    pretrained: str = "laion2b_s34b_b79k"
+    # HuggingFace model id for SigLIP2 (can be overridden via env or direct init)
+    # Example: "google/siglip2-base-patch16-256" or any compatible SigLIP/SigLIP2 vision-text model.
+    model_name: str = os.environ.get(
+        "IMG_SEARCH_MODEL_NAME", "google/siglip2-base-patch16-256"
+    )
     device: str = "cuda" if os.environ.get("USE_CUDA", "0") == "1" else "cpu"
     batch_size: int = 32
 
