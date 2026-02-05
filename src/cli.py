@@ -14,6 +14,7 @@ if "MKL_NUM_THREADS" not in os.environ:
     os.environ["MKL_NUM_THREADS"] = "1"
 
 from . import config
+from .app import main as app_main
 from .downloader import download_and_extract_from_url_list
 from .indexer import build_pq_index
 from .search import search_by_image
@@ -247,7 +248,36 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_search.set_defaults(func=cmd_search)
 
+    # serve: web UI for image search
+    p_serve = subparsers.add_parser(
+        "serve",
+        help="Start web service for image search (upload image, view results in browser)",
+    )
+    p_serve.add_argument(
+        "--host",
+        type=str,
+        default="0.0.0.0",
+        help="Bind host (default: 0.0.0.0)",
+    )
+    p_serve.add_argument(
+        "--port",
+        type=int,
+        default=5000,
+        help="Port (default: 5000)",
+    )
+    p_serve.add_argument(
+        "--debug",
+        action="store_true",
+        help="Run Flask in debug mode",
+    )
+    p_serve.set_defaults(func=cmd_serve)
+
     return parser
+
+
+def cmd_serve(args: argparse.Namespace) -> None:
+    """Start the image search web server."""
+    app_main(host=args.host, port=args.port, debug=args.debug)
 
 
 def main(argv: Optional[list[str]] = None) -> None:

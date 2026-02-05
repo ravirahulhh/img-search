@@ -39,3 +39,6 @@ data/test/
 *.pem
 
 urls.txt
+*.txt
+
+data/

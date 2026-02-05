@@ -7,4 +7,5 @@ scenedetect>=0.6.3
 faiss-cpu>=1.7.4
 transformers>=4.39.0
 tqdm>=4.66.0
+flask>=3.0.0
 

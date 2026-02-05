@@ -27,7 +27,9 @@ pip install -r requirements.txt
   - `embedding.py`：加载 OpenCLIP 模型，实现图像向量化。
   - `indexer.py`：构建/保存 FAISS PQ 索引。
   - `search.py`：加载索引并进行相似度检索。
+  - `app.py`：以图搜片 Web 服务（上传图片、返回结果，不落盘）。
   - `cli.py`：命令行入口。
+- `static/`：Web 前端静态页（`index.html`）。
 
 #### 3. 基本使用流程
 
@@ -54,7 +56,7 @@ pip install -r requirements.txt
      --index-dir data/index
    ```
 
-4. **以图搜片**
+4. **以图搜片（命令行）**
 
    ```bash
    python -m src.cli search \
@@ -63,7 +65,22 @@ pip install -r requirements.txt
      --top-k 10
    ```
 
-命令会在终端输出最相似的关键帧及其来源视频和时间戳。
+   命令会在终端输出最相似的关键帧及其来源视频和时间戳。
+
+5. **以图搜片（Web 服务）**
+
+   提供静态页面，用户上传图片即可检索，结果在页面展示。**服务端不保存上传图片，检索完成后会立即删除临时文件。**
+
+   ```bash
+   pip install -r requirements.txt   # 若未安装 Flask
+   python -m src.cli serve
+   ```
+
+   浏览器打开 http://127.0.0.1:5000 ，上传图片即可搜索。可选参数：
+
+   - `--host 0.0.0.0`（默认）：允许局域网访问
+   - `--port 5000`（默认）
+   - `--debug`：开启 Flask 调试模式
 
 #### 4. 从 URL 列表采集（不保留原视频）
 
