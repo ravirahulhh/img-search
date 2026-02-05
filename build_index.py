@@ -1,6 +1,6 @@
 import argparse
 
-from src.config import paths
+from src.config import paths, index as index_cfg
 from src.indexer import build_pq_index
 
 
@@ -20,12 +20,23 @@ def main() -> None:
         default=paths.index_dir,
         help=f"Directory to store index files (default: {paths.index_dir})",
     )
+    parser.add_argument(
+        "--no-ivfpq",
+        action="store_true",
+        help="Disable IVFPQ and always use exact IndexFlatL2 when building the FAISS index",
+    )
 
     args = parser.parse_args()
+
+    # Apply CLI override for IVFPQ usage.
+    allow_ivfpq = not args.no_ivfpq
+    index_cfg.allow_ivfpq = allow_ivfpq
 
     paths_obj = build_pq_index(
         frames_metadata_path=args.frames_meta,
         index_dir=args.index_dir,
+        cfg=index_cfg,
+        allow_ivfpq=allow_ivfpq,
     )
 
     print("Index built successfully.")

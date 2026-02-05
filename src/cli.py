@@ -45,6 +45,12 @@ def cmd_build_index(args: argparse.Namespace) -> None:
     print(f"Frames metadata: {frames_metadata}")
     print(f"Index dir: {index_dir}")
 
+    # Allow overriding IVFPQ usage from CLI.
+    if getattr(args, "no_ivfpq", False):
+        config.index.allow_ivfpq = False
+    else:
+        config.index.allow_ivfpq = True
+
     paths_obj = build_pq_index(
         frames_metadata_path=frames_metadata,
         index_dir=index_dir,
@@ -77,6 +83,12 @@ def cmd_index_from_urls(args: argparse.Namespace) -> None:
 
     if not args.no_build_index:
         print("Building FAISS index...")
+        # Allow overriding IVFPQ usage from CLI.
+        if getattr(args, "no_ivfpq", False):
+            config.index.allow_ivfpq = False
+        else:
+            config.index.allow_ivfpq = True
+
         paths_obj = build_pq_index(
             frames_metadata_path=metadata_path,
             index_dir=index_dir,
@@ -181,6 +193,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Only download and extract; do not build the FAISS index",
     )
+    p_urls.add_argument(
+        "--no-ivfpq",
+        action="store_true",
+        help="Disable IVFPQ and always use exact IndexFlatL2 when building the FAISS index",
+    )
     p_urls.set_defaults(func=cmd_index_from_urls)
 
     # build-index
@@ -198,6 +215,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=str,
         default=None,
         help="Directory to store FAISS index and index metadata (default: config.paths.index_dir)",
+    )
+    p_index.add_argument(
+        "--no-ivfpq",
+        action="store_true",
+        help="Disable IVFPQ and always use exact IndexFlatL2 when building the FAISS index",
     )
     p_index.set_defaults(func=cmd_build_index)
 

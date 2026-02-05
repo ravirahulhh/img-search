@@ -39,6 +39,9 @@ class IndexConfig:
     m: int = 64
     nbits: int = 8
     nprobe: int = 16
+    # Whether IVFPQ is allowed. When False, always use exact IndexFlatL2
+    # even if there are enough vectors for IVFPQ.
+    allow_ivfpq: bool = True
 
 
 paths = PathConfig()

@@ -45,6 +45,7 @@ def build_pq_index(
     frames_metadata_path: str | None = None,
     index_dir: str | None = None,
     cfg: IndexConfig = index_cfg,
+    allow_ivfpq: bool | None = None,
 ) -> IndexPaths:
     """Build a FAISS IVFPQ index from frame metadata and save it to disk."""
     ensure_directories()
@@ -65,12 +66,19 @@ def build_pq_index(
     xb = embeds.astype("float32")
     n, d = xb.shape
 
+    # Determine whether IVFPQ is allowed for this build.
+    use_ivfpq = cfg.allow_ivfpq if allow_ivfpq is None else allow_ivfpq
+
     # IVFPQ needs ~9984+ points for PQ codebook (256 centroids × 39); otherwise use flat index.
     MIN_POINTS_FOR_IVFPQ = 10_000
-    if n < MIN_POINTS_FOR_IVFPQ:
+    if not use_ivfpq or n < MIN_POINTS_FOR_IVFPQ:
         index = faiss.IndexFlatL2(d)
         index.add(xb)
-        print(f"Using exact search (IndexFlatL2) for {n} vectors; use IVFPQ when you have ≥{MIN_POINTS_FOR_IVFPQ}.")
+        reason = "IVFPQ disabled by configuration" if not use_ivfpq else f"not enough vectors (<{MIN_POINTS_FOR_IVFPQ})"
+        print(
+            f"Using exact search (IndexFlatL2) for {n} vectors; {reason}. "
+            "Use IVFPQ when you have sufficient data and it is enabled."
+        )
     else:
         train_size = min(100_000, n)
         nlist_actual = min(cfg.nlist, train_size, max(1, train_size // 39))
